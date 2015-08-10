@@ -1,0 +1,331 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "${ STACK_NAME } stack powered by kubernetes and coreos",
+
+  "Mappings": {
+      "RegionMap": {
+          "eu-central-1": {
+              "AMI": "ami-bececaa3"
+          },
+          "ap-northeast-1": {
+              "AMI": "ami-f2338ff2"
+          },
+          "us-gov-west-1": {
+              "AMI": "ami-c75033e4"
+          },
+          "sa-east-1": {
+              "AMI": "ami-11e9600c"
+          },
+          "ap-southeast-2": {
+              "AMI": "ami-8f88c8b5"
+          },
+          "ap-southeast-1": {
+              "AMI": "ami-b6d8d4e4"
+          },
+          "us-east-1": {
+              "AMI": "ami-3d73d356"
+          },
+          "us-west-2": {
+              "AMI": "ami-85ada4b5"
+          },
+          "us-west-1": {
+              "AMI": "ami-1db04f59"
+          },
+          "eu-west-1": {
+              "AMI": "ami-0e104179"
+          }
+      }
+  },
+
+  "Parameters": {
+    "InstanceType": {
+      "Description": "EC2 HVM instance type (m3.medium, etc).",
+      "Type": "String",
+      "Default": "t2.micro",
+      "AllowedValues": [
+        "m3.medium",
+        "m3.large",
+        "m3.xlarge",
+        "m3.2xlarge",
+        "c3.large",
+        "c3.xlarge",
+        "c3.2xlarge",
+        "c3.4xlarge",
+        "c3.8xlarge",
+        "cc2.8xlarge",
+        "cr1.8xlarge",
+        "hi1.4xlarge",
+        "hs1.8xlarge",
+        "i2.xlarge",
+        "i2.2xlarge",
+        "i2.4xlarge",
+        "i2.8xlarge",
+        "r3.large",
+        "r3.xlarge",
+        "r3.2xlarge",
+        "r3.4xlarge",
+        "r3.8xlarge",
+        "t2.micro",
+        "t2.small",
+        "t2.medium"
+      ],
+      "ConstraintDescription": "Must be a valid EC2 HVM instance type."
+    },
+    "ClusterSize": {
+      "Description": "Number of nodes in cluster (2-12).",
+      "Default": "2",
+      "MinValue": "2",
+      "MaxValue": "12",
+      "Type": "Number"
+    },
+    "AllowSSHFrom": {
+      "Description": "The net block (CIDR) that SSH is available to.",
+      "Default": "0.0.0.0/0",
+      "Type": "String"
+    },
+    "KeyPair": {
+      "Description": "The name of an EC2 Key Pair to allow SSH access to the instance.",
+      "Type": "AWS::EC2::KeyPair::KeyName"
+    },
+    "SubnetAZ": {
+      "Description": "The availability zone of the subnet (for example eu-west-1a)",
+      "Type": "String"
+    }
+  },
+
+  "Resources": {
+    "${ STACK_NAME }VPC": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "100.0.0.0/16",
+        "EnableDnsSupport": true,
+        "EnableDnsHostnames": true,
+        "InstanceTenancy": "default",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "${ STACK_NAME }-vpc"
+          }
+        ]
+      }
+    },
+    "${ STACK_NAME }Subnet": {
+      "Type": "AWS::EC2::Subnet",
+      "Properties": {
+        "CidrBlock": "100.0.0.0/16",
+        "AvailabilityZone": {"Ref": "SubnetAZ"},
+        "VpcId": {
+          "Ref": "${ STACK_NAME }VPC"
+        }
+      }
+    },
+
+    "${ STACK_NAME }IGW": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "${ STACK_NAME }-igw"
+          }
+        ]
+      }
+    },
+    "${ STACK_NAME }GWAttachment": {
+      "Type" : "AWS::EC2::VPCGatewayAttachment",
+      "Properties" : {
+        "InternetGatewayId": {
+          "Ref": "${ STACK_NAME }IGW"
+        },
+        "VpcId": {
+          "Ref": "${ STACK_NAME }VPC"
+        }
+      }
+    },
+
+    "${ STACK_NAME }RT": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "${ STACK_NAME }VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "${ STACK_NAME }-rt"
+          }
+        ]
+      }
+    },
+    "${ STACK_NAME }IGWRoute": {
+      "Type": "AWS::EC2::Route",
+      "DependsOn": ["${ STACK_NAME }IGW"],
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "${ STACK_NAME }IGW"
+        },
+        "RouteTableId": {
+          "Ref": "${ STACK_NAME }RT"
+        }
+      }
+    },
+    "${ STACK_NAME }SubnetRTAssociation": {
+      "Type": "AWS::EC2::SubnetRouteTableAssociation",
+      "Properties": {
+        "RouteTableId": {
+          "Ref": "${ STACK_NAME }RT"
+        },
+        "SubnetId": {
+          "Ref": "${ STACK_NAME }Subnet"
+        }
+      }
+    },
+
+    "${ STACK_NAME }SecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "VpcId": {
+          "Ref": "${ STACK_NAME }VPC"
+        },
+        "GroupDescription": "${ STACK_NAME } stack SecurityGroup",
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": {"Ref": "AllowSSHFrom"}
+          }
+        ]
+      }
+    },
+
+    "${ STACK_NAME }Ingress": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {"Fn::GetAtt": ["${ STACK_NAME }SecurityGroup", "GroupId"]},
+        "IpProtocol": "tcp",
+        "FromPort": "1",
+        "ToPort": "65535",
+        "SourceSecurityGroupId": {
+          "Fn::GetAtt": [ "${ STACK_NAME }SecurityGroup", "GroupId" ]
+        }
+      }
+    },
+
+    "${ STACK_NAME }IngressUDP": {
+      "Type": "AWS::EC2::SecurityGroupIngress",
+      "Properties": {
+        "GroupId": {"Fn::GetAtt": ["${ STACK_NAME }SecurityGroup", "GroupId"]},
+        "IpProtocol": "udp",
+        "FromPort": "1",
+        "ToPort": "65535",
+        "SourceSecurityGroupId": {
+          "Fn::GetAtt": [ "${ STACK_NAME }SecurityGroup", "GroupId" ]
+        }
+      }
+    },
+
+    "${ STACK_NAME }MasterInstance": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "NetworkInterfaces": [{
+          "GroupSet": [{
+            "Fn::GetAtt": ["${ STACK_NAME }SecurityGroup", "GroupId"]
+          }],
+          "AssociatePublicIpAddress": "true",
+          "DeviceIndex": "0",
+          "DeleteOnTermination": "true",
+          "SubnetId": {
+            "Ref": "${ STACK_NAME }Subnet"
+          }
+        }],
+        "ImageId": {
+          "Fn::FindInMap": ["RegionMap", {"Ref": "AWS::Region" }, "AMI"]
+        },
+        "InstanceType": {"Ref": "InstanceType"},
+        "KeyName": {"Ref": "KeyPair"},
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-", [
+                  {"Ref": "AWS::StackName"}, "k8s-master"
+                ]
+              ]
+            }
+          },
+          {
+            "Key": "${ STACK_NAME }KubernetesRole",
+            "Value": "node"
+          }
+        ],
+        "UserData": ""
+      }
+    },
+
+    "${ STACK_NAME }NodeLaunchConfig": {
+      "Type": "AWS::AutoScaling::LaunchConfiguration",
+      "Properties": {
+        "ImageId": {
+          "Fn::FindInMap": ["RegionMap", {"Ref": "AWS::Region" }, "AMI"]
+        },
+        "InstanceType": {"Ref": "InstanceType"},
+        "KeyName": {"Ref": "KeyPair"},
+        "AssociatePublicIpAddress": "true",
+        "SecurityGroups": [{
+          "Fn::GetAtt": ["${ STACK_NAME }SecurityGroup", "GroupId"]
+        }],
+        "UserData": ""
+      }
+    },
+
+    "${ STACK_NAME }AutoScalingGroup": {
+      "Type": "AWS::AutoScaling::AutoScalingGroup",
+      "Properties": {
+        "AvailabilityZones": [
+          {
+            "Fn::GetAtt": ["${ STACK_NAME }Subnet", "AvailabilityZone"]
+          }
+        ],
+        "VPCZoneIdentifier": [
+          {
+            "Ref": "${ STACK_NAME }Subnet"
+          }
+        ],
+        "LaunchConfigurationName": {"Ref": "${ STACK_NAME }NodeLaunchConfig"},
+        "MinSize": "2",
+        "MaxSize": "12",
+        "DesiredCapacity": {"Ref": "ClusterSize"},
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": {
+              "Fn::Join": [
+                "-",
+                [
+                  {"Ref": "AWS::StackName"},
+                  "k8s-node"
+                ]
+              ]
+            },
+            "PropagateAtLaunch": true
+          },
+          {
+            "Key": "${ STACK_NAME }KubernetesRole",
+            "Value": "node",
+            "PropagateAtLaunch": true
+          }
+        ]
+      }
+    }
+  },
+
+  "Outputs": {
+    "${ STACK_NAME }MasterPublicIp": {
+    "Description": "Public Ip of the newly created Kubernetes Master instance",
+      "Value": {"Fn::GetAtt": ["${ STACK_NAME }MasterInstance" , "PublicIp"]}
+    }
+  }
+}
