@@ -1,6 +1,7 @@
 {
 	"kubernetes": {
-		"version": "1.0.1"
+		"version": "1.0.1",
+		"kubectlUrl": "https://storage.googleapis.com/kubernetes-release/release/v1.0.1/bin/linux/amd64/kubectl"
 	},
 	"kube-register": {
 		"version": "0.0.4"

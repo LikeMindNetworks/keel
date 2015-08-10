@@ -62,7 +62,7 @@ coreos:
         [Service]
         ExecStartPre=-/usr/bin/mkdir -p /opt/bin
         #
-        ExecStartPre=/usr/bin/wget -N -P /opt/bin https://storage.googleapis.com/kubernetes-release/release/v${ K8S_VERSION }>/bin/linux/amd64/kubectl
+        ExecStartPre=/usr/bin/wget -N -P /opt/bin https://storage.googleapis.com/kubernetes-release/release/v${ K8S_VERSION }/bin/linux/amd64/kubectl
         ExecStartPre=/usr/bin/wget -N -P /opt/bin https://storage.googleapis.com/kubernetes-release/release/v${ K8S_VERSION }/bin/linux/amd64/kube-apiserver
         ExecStartPre=/usr/bin/wget -N -P /opt/bin https://storage.googleapis.com/kubernetes-release/release/v${ K8S_VERSION }/bin/linux/amd64/kube-controller-manager
         ExecStartPre=/usr/bin/wget -N -P /opt/bin https://storage.googleapis.com/kubernetes-release/release/v${ K8S_VERSION }/bin/linux/amd64/kube-scheduler

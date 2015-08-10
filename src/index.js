@@ -11,9 +11,8 @@ var
 
 // commands
 var
-	cmdRenderCFTmplt = require(
-		'./cmds/render-cf-template/render-cf-template.js'
-	);
+	cmdRenderCFTmplt = require('./cmds/render-cf-template/render-cf-template'),
+	cmdRunKubectl = require('./cmds/run-kubectl/run-kubectl');
 
 // output streams
 var
@@ -27,5 +26,9 @@ streamOut.pipe(process.stdout);
 switch(cmd) {
 	case 'render-cf-template':
 		cmdRenderCFTmplt(argv, streamOut);
+		break;
+
+	case 'kubectl':
+		cmdRunKubectl(argv, streamOut);
 		break;
 }

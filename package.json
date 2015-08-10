@@ -4,7 +4,8 @@
   "description": "",
   "main": "src/index.js",
   "scripts": {
-    "test": "mocha --harmony --recursive test/"
+    "test": "mocha --harmony --recursive test/",
+    "clean": "rm -r bin/* var/*"
   },
   "repository": {
     "type": "git",
