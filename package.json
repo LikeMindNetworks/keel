@@ -1,0 +1,26 @@
+{
+  "name": "keel",
+  "version": "0.0.1",
+  "description": "",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "mocha --harmony --recursive test/"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LikeMindNetworks/keel.git"
+  },
+  "keywords": [
+    "aws",
+    "kubernetes"
+  ],
+  "author": "Chenhan Shen",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/LikeMindNetworks/keel/issues"
+  },
+  "homepage": "https://github.com/LikeMindNetworks/keel#readme",
+  "dependencies": {
+    "aws-sdk": "^2.1.44"
+  }
+}
