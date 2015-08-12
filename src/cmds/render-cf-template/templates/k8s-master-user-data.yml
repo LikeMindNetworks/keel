@@ -148,6 +148,7 @@ coreos:
         [Service]
         ExecStart=/opt/bin/kube-apiserver \
           --insecure-bind-address=0.0.0.0 \
+          --insecure-port=${ K8S_PORT } \
           --service-cluster-ip-range=10.100.0.0/16 \
           --etcd-servers=http://localhost:2379
         Restart=always
@@ -163,7 +164,8 @@ coreos:
         After=kube-apiserver.service
         #
         [Service]
-        ExecStart=/opt/bin/kube-controller-manager --master=127.0.0.1:${ K8S_PORT }
+        ExecStart=/opt/bin/kube-controller-manager \
+          --master=127.0.0.1:${ K8S_PORT }
         Restart=always
         RestartSec=10
 
@@ -177,7 +179,8 @@ coreos:
         After=kube-apiserver.service
         #
         [Service]
-        ExecStart=/opt/bin/kube-scheduler --master=127.0.0.1:${ K8S_PORT }
+        ExecStart=/opt/bin/kube-scheduler \
+          --master=127.0.0.1:${ K8S_PORT }
         Restart=always
         RestartSec=10
 
