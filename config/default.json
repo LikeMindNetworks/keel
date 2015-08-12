@@ -1,6 +1,7 @@
 {
 	"keel": {
-		"s3root": "keel"
+		"s3root": "keel",
+		"apiVersion": "v1"
 	},
 	"kubernetes": {
 		"version": "1.0.1",

@@ -323,9 +323,13 @@
   },
 
   "Outputs": {
-    "${ STACK_NAME }MasterPublicIp": {
-    "Description": "Public Ip of the newly created Kubernetes Master instance",
+    "MasterPublicIp": {
+      "Description": "Public Ip of the Kubernetes Master instance",
       "Value": {"Fn::GetAtt": ["${ STACK_NAME }MasterInstance" , "PublicIp"]}
+    },
+    "SecurityGroup": {
+      "Description": "SecurityGroup of the Kubernetes cluster",
+      "Value": "${ STACK_NAME }SecurityGroup"
     }
   }
 }
