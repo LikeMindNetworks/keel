@@ -89,7 +89,7 @@ coreos:
         #
         [Service]
         ExecStart=/opt/bin/kubelet \
-          --api-servers=${ GET_MASTER_PRIVATE_IP }:8080 \
+          --api-servers=${ GET_MASTER_PRIVATE_IP }:${ K8S_PORT } \
           --hostname-override=$private_ipv4
         Restart=always
         RestartSec=10
@@ -105,7 +105,7 @@ coreos:
         #
         [Service]
         ExecStart=/opt/bin/kube-proxy \
-          --master=http://${ GET_MASTER_PRIVATE_IP }:8080
+          --master=http://${ GET_MASTER_PRIVATE_IP }:${ K8S_PORT }
         Restart=always
         RestartSec=10
 

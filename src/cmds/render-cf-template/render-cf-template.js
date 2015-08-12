@@ -2,18 +2,12 @@
 
 var
 	_ = require('lodash'),
-	through2 = require('through2'),
 	fs = require('fs'),
 	path = require('path'),
-	config = require('config'),
-	joi = require('joi');
+	rx = require('rx'),
+	config = require('config');
 
 var
-	argvSchema = joi
-		.object()
-		.keys({
-			'stack-name': joi.string().min(1).required()
-		}),
 	k8sConfig = config.get('kubernetes'),
 	kubeRegConfig = config.get('kube-register');
 
@@ -24,94 +18,105 @@ var
 
 var
 	getTemplateString = (templateName) => fs.readFileSync(
-		path.join(__dirname, "../../../templates", templateName)
-	),
+		path.join(__dirname, './templates', templateName)
+	);
 
-	render = (argv, streamOut) => {
-		let
-			stackName = argv['stack-name'],
+exports.parseArgs = (yargs) => yargs
+	.option(
+		'stack-name',
+		{
 
-			// main cloud formation config object
-			cf = JSON.parse(
-				_.template(getTemplateString('cf.json'))(
-					{
-						STACK_NAME: stackName
-					}
-				)
-			),
+			describe: 'name of the kubernetes stack',
+			demand: true
+		}
+	)
+	.option(
+		'k8s-port',
+		{
 
-			// generate the object:
-			// 	{"Fn::GetAtt": ["MasterInstance", "PrivateIp"] }
-			getMasterPrivateIpObj = JSON.parse(
-				GET_MASTER_PRIVATE_IP_TMPLT({
-					STACK_NAME: stackName
-				})
-			),
+			describe: 'port of the kubernetes server',
+			demand: false,
+			default: 8080
+		}
+	)
+	.argv;
 
-			k8NodeDataChunks = getTemplateString('k8s-node-user-data.yml')
-					.toString()
-					.split('${ GET_MASTER_PRIVATE_IP }');
+exports.execute = (argv) => rx.Observable.create((observer) => {
+	let
+		stackName = argv.stackName,
+		k8sPort = argv.k8sPort,
 
-		// User Data for the kubernete master
-		cf
-			.Resources[stackName + 'MasterInstance']
-			.Properties
-			.UserData = {
-				'Fn::Base64': _.template(
-					getTemplateString('k8s-master-user-data.yml')
-				)(
-					{
-						K8S_VERSION: k8sConfig.version,
-						KUBE_REG_VERSION: kubeRegConfig.version
-					}
-				)
-			};
+		// main cloud formation config object
+		cf = JSON.parse(
+			_.template(getTemplateString('cf.json'))(
+				{
+					STACK_NAME: stackName,
+					K8S_PORT: k8sPort
+				}
+			)
+		),
 
-		// User Data for the kubernete minimions
-		cf
-			.Resources[stackName + 'NodeLaunchConfig']
-			.Properties
-			.UserData = {
-				'Fn::Base64': _(
-					_
-						.zip(
+		// generate the object:
+		// 	{"Fn::GetAtt": ["MasterInstance", "PrivateIp"] }
+		getMasterPrivateIpObj = JSON.parse(
+			GET_MASTER_PRIVATE_IP_TMPLT({
+				STACK_NAME: stackName
+			})
+		),
+
+		k8NodeDataChunks = getTemplateString('k8s-node-user-data.yml')
+			.toString()
+			.split('${ GET_MASTER_PRIVATE_IP }');
+
+	// User Data for the kubernete master
+	cf
+		.Resources[stackName + 'MasterInstance']
+		.Properties
+		.UserData = {
+			'Fn::Base64': _.template(
+				getTemplateString('k8s-master-user-data.yml')
+			)(
+				{
+					K8S_VERSION: k8sConfig.version,
+					KUBE_REG_VERSION: kubeRegConfig.version,
+					K8S_PORT: k8sPort
+				}
+			)
+		};
+
+	// User Data for the kubernete minimions
+	cf
+		.Resources[stackName + 'NodeLaunchConfig']
+		.Properties
+		.UserData = {
+			'Fn::Base64': {
+				"Fn::Join": [
+					'',
+					_(
+						_.zip(
 							k8NodeDataChunks.map(
 								(chunk) => _.template(chunk)(
 									{
 										K8S_VERSION: k8sConfig.version,
-										KUBE_REG_VERSION: kubeRegConfig.version
+										KUBE_REG_VERSION: kubeRegConfig.version,
+										K8S_PORT: k8sPort
 									}
 								)
 							),
-							_
-								.range(k8NodeDataChunks.length - 1)
-								.map(
-									() => getMasterPrivateIpObj
-								)
+							_.range(k8NodeDataChunks.length - 1).map(
+								() => getMasterPrivateIpObj
+							)
 						)
 					)
 					.flatten()
 					.filter()
 					.value()
-			};
-
-		// output the cf
-		streamOut.write(JSON.stringify(cf, ' ', 2));
-	};
-
-module.exports = (argv, streamOut) => {
-	joi.validate(
-		argv,
-		argvSchema,
-		{
-			allowUnknown: true
-		},
-		(err, value) => {
-			if (err) {
-				throw err;
-			} else {
-				render(value, streamOut);
+				]
 			}
-		}
-	);
-};
+		};
+
+	// output the cf
+	observer.onNext(JSON.stringify(cf, ' ', 2));
+
+	observer.onCompleted();
+});
