@@ -25,7 +25,7 @@
       }
     },
 
-    "${ clusterName }IGWAttachment": {
+    "IGWAttachment": {
       "Type": "AWS::EC2::VPCGatewayAttachment",
       "Properties": {
         "VpcId": {
@@ -52,7 +52,7 @@
       }
     },
 
-    "${ clusterName }IGWRoute": {
+    "IGWRoute": {
       "Type": "AWS::EC2::Route",
       "DependsOn": ["${ clusterName }IGW"],
       "Properties": {
@@ -84,7 +84,7 @@
       }
     },
 
-    "${ clusterName }InstanceRole": {
+    "InstanceRole": {
       "Type": "AWS::IAM::Role",
       "Properties": {
         "Path": "/",
@@ -137,25 +137,25 @@
       }
     },
 
-    "${ clusterName }InstanceProfile": {
+    "InstanceProfile": {
       "Type": "AWS::IAM::InstanceProfile",
       "Properties": {
         "Path": "/",
         "Roles": [
           {
-            "Ref": "${ clusterName }InstanceRole"
+            "Ref": "InstanceRole"
           }
         ]
       }
     },
 
-    "${ clusterName }InstanceLC": {
+    "InstanceLC": {
       "Type": "AWS::AutoScaling::LaunchConfiguration",
       "Properties": {
         "ImageId": "${ ecsAmiId }",
         "InstanceType": "${ ecsInstanceType }",
         "IamInstanceProfile": {
-          "Ref": "${ clusterName }InstanceProfile"
+          "Ref": "InstanceProfile"
         },
         "KeyName": "${ keyName }",
         "SecurityGroups": [
@@ -179,7 +179,7 @@
       }
     },
 
-    "${ clusterName }ASG": {
+    "ASG": {
       "Type": "AWS::AutoScaling::AutoScalingGroup",
       "Properties": {
         "AvailabilityZones": {
@@ -187,7 +187,7 @@
         "VPCZoneIdentifier": {
         },
         "LaunchConfigurationName": {
-          "Ref": "${ clusterName }InstanceLC"
+          "Ref": "InstanceLC"
         },
         "MinSize": "1",
         "MaxSize": "${ clusterMaxSize }",
@@ -204,10 +204,10 @@
   },
 
   "Outputs": {
-    "${ clusterName }ASG": {
+    "ASG": {
       "Description": "${ clusterName } cluster auto scaling group",
       "Value": {
-        "Ref": "${ clusterName }ASG"
+        "Ref": "ASG"
       }
     }
   }

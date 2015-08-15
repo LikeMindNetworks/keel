@@ -90,7 +90,7 @@ exports.execute = (argv) => {
 						cfTmplt.Resources, subnetResources, subnetRTAssocResources
 					),
 
-				asgProps = resources[argv.clusterName + 'ASG'].Properties;
+				asgProps = resources['ASG'].Properties;
 
 			// generate auto scaling settings
 			asgProps.AvailabilityZones = zones;
