@@ -5,118 +5,103 @@ var
 	fs = require('fs'),
 	path = require('path'),
 	rx = require('rx'),
-	config = require('config');
+	AWS = require('aws-sdk');
 
 var
-	k8sConfig = config.get('kubernetes'),
-	kubeRegConfig = config.get('kube-register');
-
-var
-	GET_MASTER_PRIVATE_IP_TMPLT = _.template(
-		'{"Fn::GetAtt": ["${ STACK_NAME }MasterInstance" , "PrivateIp"]}'
-	);
-
-var
-	getTemplateString = (templateName) => fs.readFileSync(
+	getTemplate = (templateName) => _.template(fs.readFileSync(
 		path.join(__dirname, './templates', templateName)
+	)),
+
+	mkSubnet = (clusterName, az, subnetIndex) => JSON.parse(
+		getTemplate('./cf-subnet.json')(
+			{
+				clusterName: clusterName,
+				cidrBlock: '200.0.' + (255 - subnetIndex) + '.0/24',
+				availabilityZone: az
+			}
+		)
+	),
+
+	mkSubnetRTAssoc = (clusterName, subnetName) => JSON.parse(
+		getTemplate('./cf-subnet-rt-assoc.json')(
+			{
+				clusterName: clusterName,
+				subnetName: subnetName
+			}
+		)
 	);
 
-exports.parseArgs = (yargs) => yargs
-	.option(
-		'stack-name',
-		{
+exports.parseArgs = require('./args-parser');
 
-			describe: 'name of the kubernetes stack',
-			demand: true
-		}
-	)
-	.option(
-		'k8s-port',
-		{
+exports.execute = (argv) => {
+	AWS.config.credentials = new AWS.SharedIniFileCredentials({
+		profile: argv.profile
+	});
 
-			describe: 'port of the kubernetes server',
-			demand: false,
-			default: 8080
-		}
-	)
-	.argv;
+	AWS.config.region = argv.region;
 
-exports.execute = (argv) => rx.Observable.create((observer) => {
-	let
-		stackName = argv.stackName,
-		k8sPort = argv.k8sPort,
+	let ec2 = rx.Observable.fromNodeCallbackAll(new AWS.EC2());
 
-		// main cloud formation config object
-		cf = JSON.parse(
-			_.template(getTemplateString('cf.json'))(
-				{
-					STACK_NAME: stackName,
-					K8S_PORT: k8sPort
-				}
-			)
-		),
+	argv.ecsConfigS3Path = '/';
+	argv.cidrBlock = '200.0.0.0/16';
 
-		// generate the object:
-		// 	{"Fn::GetAtt": ["MasterInstance", "PrivateIp"] }
-		getMasterPrivateIpObj = JSON.parse(
-			GET_MASTER_PRIVATE_IP_TMPLT({
-				STACK_NAME: stackName
-			})
-		),
+	if (!argv.clusterMaxSize) {
+		argv.clusterMaxSize = argv.clusterSize;
+	}
 
-		k8NodeDataChunks = getTemplateString('k8s-node-user-data.yml')
-			.toString()
-			.split('${ GET_MASTER_PRIVATE_IP }');
+	return ec2
+		.describeAvailabilityZones()
+		.pluck('AvailabilityZones')
+		.concatMap(rx.Observable.from)
+		.pluck('ZoneName')
+		.toArray()
+		.map((zones) => {
+			let
+				cfTmplt = JSON.parse(getTemplate('./cf-template.json')(argv)),
 
-	// User Data for the kubernete master
-	cf
-		.Resources[stackName + 'MasterInstance']
-		.Properties
-		.UserData = {
-			'Fn::Base64': _.template(
-				getTemplateString('k8s-master-user-data.yml')
-			)(
-				{
-					K8S_VERSION: k8sConfig.version,
-					KUBE_REG_VERSION: kubeRegConfig.version,
-					K8S_PORT: k8sPort
-				}
-			)
-		};
+				subnetResources = _.reduce(
+					zones,
+					(res, z, idx) => {
+						res[argv.clusterName + 'Subnet' + idx] = mkSubnet(
+							argv.clusterName, z, idx
+						);
 
-	// User Data for the kubernete minimions
-	cf
-		.Resources[stackName + 'NodeLaunchConfig']
-		.Properties
-		.UserData = {
-			'Fn::Base64': {
-				"Fn::Join": [
-					'',
-					_(
-						_.zip(
-							k8NodeDataChunks.map(
-								(chunk) => _.template(chunk)(
-									{
-										K8S_VERSION: k8sConfig.version,
-										KUBE_REG_VERSION: kubeRegConfig.version,
-										K8S_PORT: k8sPort
-									}
-								)
-							),
-							_.range(k8NodeDataChunks.length - 1).map(
-								() => getMasterPrivateIpObj
-							)
-						)
-					)
-					.flatten()
-					.filter()
-					.value()
-				]
-			}
-		};
+						return res
+					},
+					{}
+				),
 
-	// output the cf
-	observer.onNext(JSON.stringify(cf, ' ', 2));
+				subnetRTAssocResources = _.reduce(
+					_(subnetResources).keys().value(),
+					(res, subnetName) => {
+						res[subnetName + 'RTAssoc'] = mkSubnetRTAssoc(
+							argv.clusterName, subnetName
+						);
 
-	observer.onCompleted();
-});
+						return res
+					},
+					{}
+				),
+
+				// attach subnet to resources
+				resources
+					= cfTmplt.Resources
+					= _.assign(
+						cfTmplt.Resources, subnetResources, subnetRTAssocResources
+					),
+
+				asgProps = resources[argv.clusterName + 'ASG'].Properties;
+
+			// generate auto scaling settings
+			asgProps.AvailabilityZones = zones;
+			asgProps.VPCZoneIdentifier = _(subnetResources).keys()
+				.map((key) => {
+					return {
+						"Ref": key
+					};
+				})
+				.value();
+
+			return cfTmplt;
+		});
+};

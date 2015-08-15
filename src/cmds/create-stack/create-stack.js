@@ -18,57 +18,7 @@ var
 		'../../cmds/s3-upload/s3-upload'
 	);
 
-exports.parseArgs = (yargs) => yargs
-	.option(
-		'stack-name',
-		{
-			describe: 'name of the kubernetes stack',
-			demand: true
-		}
-	)
-	.option(
-		'subnet-az',
-		{
-			describe: 'subnet availability zone for the VPC of the stack',
-			demand: true
-		}
-	)
-	.option(
-		'key-pair',
-		{
-			describe: 'key pair used to connect to aws',
-			demand: true
-		}
-	)
-	.option(
-		'profile',
-		{
-			describe: 'profile for aws',
-			default: 'default'
-		}
-	)
-	.option(
-		'k8s-port',
-		{
-			describe: 'port of the kubernetes server',
-			default: 8080
-		}
-	)
-	.option(
-		'cluster-size',
-		{
-			describe: 'number of minion nodes in the kubernetes stack',
-			default: 2
-		}
-	)
-	.option(
-		'instance-type',
-		{
-			describe: 'instance type to be launched into the stack',
-			default: 't2.micro'
-		}
-	)
-	.argv;
+exports.parseArgs = require('../render-cf-template/args-parser');
 
 exports.execute = (argv) => rx
 	.Observable
@@ -82,7 +32,7 @@ exports.execute = (argv) => rx
 		(cfTemplate, tempFileInfo) => {
 
 			// write to a temporary file
-			fs.writeFileSync(tempFileInfo.path, cfTemplate);
+			fs.writeFileSync(tempFileInfo.path, JSON.stringify(cfTemplate));
 
 			return tempFileInfo.path;
 		}
@@ -97,30 +47,14 @@ exports.execute = (argv) => rx
 			profile: argv.profile
 		});
 
-		AWS.config.region = argv.subnetAz.substring(
-			0, argv.subnetAz.length - 1
-		);
+		AWS.config.region = argv.region;
 
 		let
 			cloudformation = new AWS.CloudFormation(),
 			params = {
-				StackName: argv['stack-name'],
+				StackName: argv.clusterName,
 				Capabilities: [
 					'CAPABILITY_IAM',
-				],
-				Parameters: [
-					{
-						ParameterKey: 'KeyPair',
-						ParameterValue: argv.keyPair
-					},
-					{
-						ParameterKey: 'ClusterSize',
-						ParameterValue: argv.clusterSize + ''
-					},
-					{
-						ParameterKey: 'SubnetAZ',
-						ParameterValue: argv.subnetAz
-					}
 				],
 				TemplateURL: uploadRes.Location
 			};

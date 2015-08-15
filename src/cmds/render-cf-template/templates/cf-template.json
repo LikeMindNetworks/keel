@@ -1,0 +1,214 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+
+  "Description": "Generated Cloudformation Template for stack: ${ clusterName }",
+
+  "Resources": {
+    "${ clusterName }VPC": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "${ cidrBlock }",
+        "EnableDnsSupport": "true",
+        "EnableDnsHostnames": "true"
+      }
+    },
+
+    "${ clusterName }IGW": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "${ clusterName }igw"
+          }
+        ]
+      }
+    },
+
+    "${ clusterName }IGWAttachment": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": {
+          "Ref": "${ clusterName }VPC"
+        },
+        "InternetGatewayId": {
+          "Ref": "${ clusterName }IGW"
+        }
+      }
+    },
+
+    "${ clusterName }RT": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "${ clusterName }VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "${ clusterName }rt"
+          }
+        ]
+      }
+    },
+
+    "${ clusterName }IGWRoute": {
+      "Type": "AWS::EC2::Route",
+      "DependsOn": ["${ clusterName }IGW"],
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "${ clusterName }IGW"
+        },
+        "RouteTableId": {
+          "Ref": "${ clusterName }RT"
+        }
+      }
+    },
+
+    "${ clusterName }SG": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "${ clusterName } security group for ECS",
+        "VpcId": {
+          "Ref": "${ clusterName }VPC"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ]
+      }
+    },
+
+    "${ clusterName }InstanceRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "Path": "/",
+        "AssumeRolePolicyDocument" : {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                 "Service": [ "ec2.amazonaws.com" ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "${ clusterName }InstancePolicy",
+            "PolicyDocument": {
+              "Version" : "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:Get*",
+                    "s3:List*",
+
+                    "ecs:Poll",
+                    "ecs:Submit*",
+                    "ecs:CreateCluster",
+                    "ecs:DeregisterContainerInstance",
+                    "ecs:DiscoverPollEndpoint",
+                    "ecs:RegisterContainerInstance",
+
+                    "ec2:Describe*",
+                    "ec2:AuthorizeSecurityGroupIngress",
+
+                    "elasticloadbalancing:Describe*",
+                    "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
+                    "elasticloadbalancing:RegisterInstancesWithLoadBalancer"
+                  ],
+                  "Resource": "*"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+
+    "${ clusterName }InstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Path": "/",
+        "Roles": [
+          {
+            "Ref": "${ clusterName }InstanceRole"
+          }
+        ]
+      }
+    },
+
+    "${ clusterName }InstanceLC": {
+      "Type": "AWS::AutoScaling::LaunchConfiguration",
+      "Properties": {
+        "ImageId": "${ ecsAmiId }",
+        "InstanceType": "${ ecsInstanceType }",
+        "IamInstanceProfile": {
+          "Ref": "${ clusterName }InstanceProfile"
+        },
+        "KeyName": "${ keyName }",
+        "SecurityGroups": [
+          {
+            "Ref": "${ clusterName }SG"
+          }
+        ],
+        "AssociatePublicIpAddress": true,
+        "UserData": {
+          "Fn::Base64": {
+            "Fn::Join": [
+              "",
+              [
+"#!/bin/bash\n",
+"yum install -y aws-cli\n",
+"aws s3 cp s3://${ ecsConfigS3Path } /etc/ecs/ecs.config"
+              ]
+            ]
+          }
+        }
+      }
+    },
+
+    "${ clusterName }ASG": {
+      "Type": "AWS::AutoScaling::AutoScalingGroup",
+      "Properties": {
+        "AvailabilityZones": {
+        },
+        "VPCZoneIdentifier": {
+        },
+        "LaunchConfigurationName": {
+          "Ref": "${ clusterName }InstanceLC"
+        },
+        "MinSize": "1",
+        "MaxSize": "${ clusterMaxSize }",
+        "DesiredCapacity": "${ clusterSize }",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "${ clusterName } cluster auto scaling group",
+            "PropagateAtLaunch": "true"
+          }
+        ]
+      }
+    }
+  },
+
+  "Outputs": {
+    "${ clusterName }ASG": {
+      "Description": "${ clusterName } cluster auto scaling group",
+      "Value": {
+        "Ref": "${ clusterName }ASG"
+      }
+    }
+  }
+}
