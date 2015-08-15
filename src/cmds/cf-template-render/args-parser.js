@@ -19,10 +19,10 @@ module.exports = (yargs) => yargs
 		}
 	)
 	.option(
-		'cluster-name',
+		'stack-name',
 		{
 
-			describe: 'name of the cluster',
+			describe: 'name of the stack',
 			demand: true
 		}
 	)

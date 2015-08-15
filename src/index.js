@@ -41,18 +41,18 @@ var exec = (cmd, yargs) => {
 yargs
 	.version(packageJson.version)
 	.command(
-		'render-cf-template',
+		'cf-template-render',
 		'render aws cloud formation template for cloud formation stack creation',
 		(yargs) => exec(
-			require('./cmds/render-cf-template/render-cf-template'),
+			require('./cmds/cf-template-render/cf-template-render'),
 			yargs
 		)
 	)
 	.command(
-		'create-stack',
+		'cf-stack-create',
 		'create an aws stack for kubernetes',
 		(yargs) => exec(
-			require('./cmds/create-stack/create-stack'),
+			require('./cmds/cf-stack-create/cf-stack-create'),
 			yargs
 		)
 	)

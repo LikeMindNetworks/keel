@@ -11,14 +11,12 @@ var
 
 var
 	keelConfig = config.get('keel'),
-	cmdRenderCFTmplt = require(
-		'../../cmds/render-cf-template/render-cf-template'
-	),
+	cmdRenderCFTmplt = require('../cf-template-render/cf-template-render'),
 	cmdS3Upload = require(
 		'../../cmds/s3-upload/s3-upload'
 	);
 
-exports.parseArgs = require('../render-cf-template/args-parser');
+exports.parseArgs = require('../cf-template-render/args-parser');
 
 exports.execute = (argv) => rx
 	.Observable
@@ -52,7 +50,7 @@ exports.execute = (argv) => rx
 		let
 			cloudformation = new AWS.CloudFormation(),
 			params = {
-				StackName: argv.clusterName,
+				StackName: argv.stackName,
 				Capabilities: [
 					'CAPABILITY_IAM',
 				],

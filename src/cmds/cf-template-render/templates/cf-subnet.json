@@ -2,7 +2,7 @@
   "Type": "AWS::EC2::Subnet",
   "Properties": {
     "VpcId": {
-      "Ref": "${ clusterName }VPC"
+      "Ref": "${ stackName }VPC"
     },
     "CidrBlock": "${ cidrBlock }",
     "AvailabilityZone": "${ availabilityZone }"

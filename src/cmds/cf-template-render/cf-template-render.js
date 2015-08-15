@@ -12,20 +12,20 @@ var
 		path.join(__dirname, './templates', templateName)
 	)),
 
-	mkSubnet = (clusterName, az, subnetIndex) => JSON.parse(
+	mkSubnet = (stackName, az, subnetIndex) => JSON.parse(
 		getTemplate('./cf-subnet.json')(
 			{
-				clusterName: clusterName,
+				stackName: stackName,
 				cidrBlock: '200.0.' + (255 - subnetIndex) + '.0/24',
 				availabilityZone: az
 			}
 		)
 	),
 
-	mkSubnetRTAssoc = (clusterName, subnetName) => JSON.parse(
+	mkSubnetRTAssoc = (stackName, subnetName) => JSON.parse(
 		getTemplate('./cf-subnet-rt-assoc.json')(
 			{
-				clusterName: clusterName,
+				stackName: stackName,
 				subnetName: subnetName
 			}
 		)
@@ -62,8 +62,8 @@ exports.execute = (argv) => {
 				subnetResources = _.reduce(
 					zones,
 					(res, z, idx) => {
-						res[argv.clusterName + 'Subnet' + idx] = mkSubnet(
-							argv.clusterName, z, idx
+						res[argv.stackName + 'Subnet' + idx] = mkSubnet(
+							argv.stackName, z, idx
 						);
 
 						return res
@@ -75,7 +75,7 @@ exports.execute = (argv) => {
 					_(subnetResources).keys().value(),
 					(res, subnetName) => {
 						res[subnetName + 'RTAssoc'] = mkSubnetRTAssoc(
-							argv.clusterName, subnetName
+							argv.stackName, subnetName
 						);
 
 						return res
