@@ -12,37 +12,47 @@ var
 		path.join(__dirname, './templates', templateName)
 	)),
 
-	mkSubnet = (stackName, az, subnetIndex) => JSON.parse(
+	mkSubnet = (clusterName, az, subnetIndex) => JSON.parse(
 		getTemplate('./cf-subnet.json')(
 			{
-				stackName: stackName,
+				clusterName: clusterName,
 				cidrBlock: '200.0.' + (255 - subnetIndex) + '.0/24',
 				availabilityZone: az
 			}
 		)
 	),
 
-	mkSubnetRTAssoc = (stackName, subnetName) => JSON.parse(
+	mkSubnetRTAssoc = (clusterName, subnetName) => JSON.parse(
 		getTemplate('./cf-subnet-rt-assoc.json')(
 			{
-				stackName: stackName,
+				clusterName: clusterName,
 				subnetName: subnetName
 			}
 		)
 	);
 
-exports.parseArgs = require('./args-parser');
+exports.parseArgs = (yargs) => require('./args')(yargs)
+	.option(
+		'ecs-config-s3-path',
+		{
+			describe: 's3 path to the ecs config file',
+			demand: true
+		}
+	)
+	.argv;
 
 exports.execute = (argv) => {
 	AWS.config.credentials = new AWS.SharedIniFileCredentials({
 		profile: argv.profile
 	});
 
-	AWS.config.region = argv.region;
+	let ec2 = rx.Observable.fromNodeCallbackAll(new AWS.EC2(
+		{
+			apiVersion: '2015-04-15',
+			region: argv.region
+		}
+	));
 
-	let ec2 = rx.Observable.fromNodeCallbackAll(new AWS.EC2());
-
-	argv.ecsConfigS3Path = '/';
 	argv.cidrBlock = '200.0.0.0/16';
 
 	if (!argv.clusterMaxSize) {
@@ -62,8 +72,8 @@ exports.execute = (argv) => {
 				subnetResources = _.reduce(
 					zones,
 					(res, z, idx) => {
-						res[argv.stackName + 'Subnet' + idx] = mkSubnet(
-							argv.stackName, z, idx
+						res[argv.clusterName + 'Subnet' + idx] = mkSubnet(
+							argv.clusterName, z, idx
 						);
 
 						return res
@@ -75,7 +85,7 @@ exports.execute = (argv) => {
 					_(subnetResources).keys().value(),
 					(res, subnetName) => {
 						res[subnetName + 'RTAssoc'] = mkSubnetRTAssoc(
-							argv.stackName, subnetName
+							argv.clusterName, subnetName
 						);
 
 						return res

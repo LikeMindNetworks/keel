@@ -12,11 +12,11 @@ var
 var
 	keelConfig = config.get('keel'),
 	cmdRenderCFTmplt = require('../cf-template-render/cf-template-render'),
-	cmdS3Upload = require(
-		'../../cmds/s3-upload/s3-upload'
-	);
+	cmdS3Upload = require('../s3-upload/s3-upload');
 
-exports.parseArgs = require('../cf-template-render/args-parser');
+exports.parseArgs = (yargs) => require(
+	'../cf-template-render/args'
+)(yargs).argv;
 
 exports.execute = (argv) => rx
 	.Observable
@@ -45,12 +45,13 @@ exports.execute = (argv) => rx
 			profile: argv.profile
 		});
 
-		AWS.config.region = argv.region;
-
 		let
-			cloudformation = new AWS.CloudFormation(),
+			cloudformation = new AWS.CloudFormation({
+				apiVersion: '2010-05-15',
+				region: argv.region
+			}),
 			params = {
-				StackName: argv.stackName,
+				StackName: argv.clusterName + 'Stack',
 				Capabilities: [
 					'CAPABILITY_IAM',
 				],

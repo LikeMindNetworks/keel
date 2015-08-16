@@ -23,23 +23,31 @@ var exec = (cmd, yargs) => {
 					} else {
 						process.stdout.write(result);
 					}
+
+					process.stdout.write('\n');
 				},
 				(error) => {
 					throw error;
 				},
-				() => {
-					process.stdout.write('\n');
-				}
+				() => {}
 			);
 	} catch(ex) {
 		// catch the failure during the creation of the command observable
 		// yargs has this nasty habbit of not showing stack trace for errors
 		console.error(ex.stack);
 	}
-}
+};
 
 yargs
 	.version(packageJson.version)
+	.command(
+		'cluster-create',
+		'create cloud formation stack, ecs cluster, and other resources',
+		(yargs) => exec(
+			require('./cmds/cluster-create/cluster-create'),
+			yargs
+		)
+	)
 	.command(
 		'cf-template-render',
 		'render aws cloud formation template for cloud formation stack creation',
@@ -66,4 +74,5 @@ yargs
 	)
 	.help('help')
 	.demand(1) // must pick a command
+	.strict()
 	.argv;

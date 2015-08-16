@@ -1,10 +1,11 @@
 {
   "AWSTemplateFormatVersion": "2010-09-09",
 
-  "Description": "Generated Cloudformation Template for stack: ${ stackName }",
+  "Description":
+      "Generated Cloudformation Template for stack: ${ clusterName }",
 
   "Resources": {
-    "${ stackName }VPC": {
+    "${ clusterName }VPC": {
       "Type": "AWS::EC2::VPC",
       "Properties": {
         "CidrBlock": "${ cidrBlock }",
@@ -13,13 +14,13 @@
       }
     },
 
-    "${ stackName }IGW": {
+    "${ clusterName }IGW": {
       "Type": "AWS::EC2::InternetGateway",
       "Properties": {
         "Tags": [
           {
             "Key": "Name",
-            "Value": "${ stackName }igw"
+            "Value": "${ clusterName }igw"
           }
         ]
       }
@@ -29,24 +30,24 @@
       "Type": "AWS::EC2::VPCGatewayAttachment",
       "Properties": {
         "VpcId": {
-          "Ref": "${ stackName }VPC"
+          "Ref": "${ clusterName }VPC"
         },
         "InternetGatewayId": {
-          "Ref": "${ stackName }IGW"
+          "Ref": "${ clusterName }IGW"
         }
       }
     },
 
-    "${ stackName }RT": {
+    "${ clusterName }RT": {
       "Type": "AWS::EC2::RouteTable",
       "Properties": {
         "VpcId": {
-          "Ref": "${ stackName }VPC"
+          "Ref": "${ clusterName }VPC"
         },
         "Tags": [
           {
             "Key": "Name",
-            "Value": "${ stackName }rt"
+            "Value": "${ clusterName }rt"
           }
         ]
       }
@@ -54,24 +55,24 @@
 
     "IGWRoute": {
       "Type": "AWS::EC2::Route",
-      "DependsOn": ["${ stackName }IGW"],
+      "DependsOn": ["${ clusterName }IGW"],
       "Properties": {
         "DestinationCidrBlock": "0.0.0.0/0",
         "GatewayId": {
-          "Ref": "${ stackName }IGW"
+          "Ref": "${ clusterName }IGW"
         },
         "RouteTableId": {
-          "Ref": "${ stackName }RT"
+          "Ref": "${ clusterName }RT"
         }
       }
     },
 
-    "${ stackName }SG": {
+    "${ clusterName }SG": {
       "Type": "AWS::EC2::SecurityGroup",
       "Properties": {
-        "GroupDescription": "${ stackName } security group for ECS",
+        "GroupDescription": "${ clusterName } security group for ECS",
         "VpcId": {
-          "Ref": "${ stackName }VPC"
+          "Ref": "${ clusterName }VPC"
         },
         "SecurityGroupIngress": [
           {
@@ -104,7 +105,7 @@
         },
         "Policies": [
           {
-            "PolicyName": "${ stackName }InstancePolicy",
+            "PolicyName": "${ clusterName }InstancePolicy",
             "PolicyDocument": {
               "Version" : "2012-10-17",
               "Statement": [
@@ -160,7 +161,7 @@
         "KeyName": "${ keyName }",
         "SecurityGroups": [
           {
-            "Ref": "${ stackName }SG"
+            "Ref": "${ clusterName }SG"
           }
         ],
         "AssociatePublicIpAddress": true,
@@ -195,7 +196,7 @@
         "Tags": [
           {
             "Key": "Name",
-            "Value": "${ stackName } cluster auto scaling group",
+            "Value": "${ clusterName } cluster auto scaling group",
             "PropagateAtLaunch": "true"
           }
         ]
@@ -205,7 +206,7 @@
 
   "Outputs": {
     "ASG": {
-      "Description": "${ stackName } cluster auto scaling group",
+      "Description": "${ clusterName } cluster auto scaling group",
       "Value": {
         "Ref": "ASG"
       }

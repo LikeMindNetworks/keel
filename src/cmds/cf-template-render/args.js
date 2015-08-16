@@ -19,10 +19,9 @@ module.exports = (yargs) => yargs
 		}
 	)
 	.option(
-		'stack-name',
+		'cluster-name',
 		{
-
-			describe: 'name of the stack',
+			describe: 'name of the cluster',
 			demand: true
 		}
 	)
@@ -60,5 +59,4 @@ module.exports = (yargs) => yargs
 			demand: false,
 			default: 2
 		}
-	)
-	.argv;
+	);

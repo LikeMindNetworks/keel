@@ -5,7 +5,7 @@
       "Ref": "${ subnetName }"
     },
     "RouteTableId": {
-      "Ref": "${ stackName }RT"
+      "Ref": "${ clusterName }RT"
     }
   }
 }
