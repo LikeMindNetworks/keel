@@ -2,6 +2,7 @@
 
 var
 	_ = require('lodash'),
+	fs = require('fs'),
 	path = require('path'),
 	yargs = require('yargs'),
 	temp = require('temp'),
@@ -38,40 +39,19 @@ var exec = (cmd, yargs) => {
 	}
 };
 
-yargs
-	.version(packageJson.version)
-	.command(
-		'cluster-create',
-		'create cloud formation stack, ecs cluster, and other resources',
-		(yargs) => exec(
-			require('./cmds/cluster-create/cluster-create'),
-			yargs
+var args = yargs.version(packageJson.version);
+
+fs
+	.readdirSync(path.join(__dirname, 'cmds'))
+	.forEach(
+		(name) => args.command(
+			name,
+			'Command: ' + name,
+			(yargs) => exec(require('./cmds/' + name + '/' + name), yargs)
 		)
-	)
-	.command(
-		'cf-template-render',
-		'render aws cloud formation template for cloud formation stack creation',
-		(yargs) => exec(
-			require('./cmds/cf-template-render/cf-template-render'),
-			yargs
-		)
-	)
-	.command(
-		'cf-stack-create',
-		'create an aws stack for kubernetes',
-		(yargs) => exec(
-			require('./cmds/cf-stack-create/cf-stack-create'),
-			yargs
-		)
-	)
-	.command(
-		's3-upload',
-		'upload file to s3',
-		(yargs) => exec(
-			require('./cmds/s3-upload/s3-upload'),
-			yargs
-		)
-	)
+	);
+
+args
 	.help('help')
 	.demand(1) // must pick a command
 	.strict()
