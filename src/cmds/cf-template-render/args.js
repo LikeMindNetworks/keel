@@ -59,4 +59,13 @@ module.exports = (yargs) => yargs
 			demand: false,
 			default: 2
 		}
+	)
+	.option(
+		'cidr-prefix',
+		{
+
+			describe: 'preset of cidr prefix',
+			demand: false,
+			default: '200.0.'
+		}
 	);

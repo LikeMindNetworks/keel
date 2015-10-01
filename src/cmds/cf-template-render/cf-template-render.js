@@ -12,11 +12,11 @@ var
 		path.join(__dirname, './templates', templateName)
 	)),
 
-	mkSubnet = (clusterName, az, subnetIndex) => JSON.parse(
+	mkSubnet = (clusterName, az, subnetIndex, cidrPrefix) => JSON.parse(
 		getTemplate('./cf-subnet.json')(
 			{
 				clusterName: clusterName,
-				cidrBlock: '200.0.' + (255 - subnetIndex) + '.0/24',
+				cidrBlock: cidrPrefix + (255 - subnetIndex) + '.0/24',
 				availabilityZone: az
 			}
 		)
@@ -53,7 +53,11 @@ exports.execute = (argv) => {
 		}
 	));
 
-	argv.cidrBlock = '200.0.0.0/16';
+	if (argv.cidrPrefix[argv.cidrPrefix.length - 1] !== '.') {
+		argv.cidrPrefix += '.';
+	}
+
+	argv.cidrBlock = argv.cidrPrefix + '0.0/16';
 
 	if (!argv.clusterMaxSize) {
 		argv.clusterMaxSize = argv.clusterSize;
@@ -73,7 +77,7 @@ exports.execute = (argv) => {
 					zones,
 					(res, z, idx) => {
 						res[argv.clusterName + 'Subnet' + idx] = mkSubnet(
-							argv.clusterName, z, idx
+							argv.clusterName, z, idx, argv.cidrPrefix
 						);
 
 						return res
