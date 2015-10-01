@@ -171,6 +171,10 @@
               "",
               [
 "#!/bin/bash\n",
+"echo \"* soft nofile 1048576\" >> /etc/security/limits.conf\n",
+"echo \"* hard nofile 1048576\" >> /etc/security/limits.conf\n",
+"echo \"ClientAliveInterval 60\" >> /etc/ssh/sshd_config\n",
+"ulimit -n 1048576\n",
 "yum install -y aws-cli\n",
 "aws s3 cp s3://${ ecsConfigS3Path } /etc/ecs/ecs.config"
               ]
