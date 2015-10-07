@@ -1,0 +1,240 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+
+  "Description":
+      "Generated Kubernetes CF template for stack: ${ clusterName }",
+
+  "Resources": {
+    "${ clusterName }VPC": {
+      "Type": "AWS::EC2::VPC",
+      "Properties": {
+        "CidrBlock": "${ cidrBlock }",
+        "EnableDnsSupport": "true",
+        "EnableDnsHostnames": "true"
+      }
+    },
+
+    "${ clusterName }IGW": {
+      "Type": "AWS::EC2::InternetGateway",
+      "Properties": {
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "${ clusterName }IGW"
+          }
+        ]
+      }
+    },
+
+    "IGWAttachment": {
+      "Type": "AWS::EC2::VPCGatewayAttachment",
+      "Properties": {
+        "VpcId": {
+          "Ref": "${ clusterName }VPC"
+        },
+        "InternetGatewayId": {
+          "Ref": "${ clusterName }IGW"
+        }
+      }
+    },
+
+    "${ clusterName }RT": {
+      "Type": "AWS::EC2::RouteTable",
+      "Properties": {
+        "VpcId": {
+          "Ref": "${ clusterName }VPC"
+        },
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "${ clusterName }RT"
+          }
+        ]
+      }
+    },
+
+    "IGWRoute": {
+      "Type": "AWS::EC2::Route",
+      "DependsOn": ["${ clusterName }IGW"],
+      "Properties": {
+        "DestinationCidrBlock": "0.0.0.0/0",
+        "GatewayId": {
+          "Ref": "${ clusterName }IGW"
+        },
+        "RouteTableId": {
+          "Ref": "${ clusterName }RT"
+        }
+      }
+    },
+
+    "${ clusterName }SG": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupDescription": "${ clusterName } security group for ECS",
+        "VpcId": {
+          "Ref": "${ clusterName }VPC"
+        },
+        "SecurityGroupIngress": [
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "22",
+            "ToPort": "22",
+            "CidrIp": "0.0.0.0/0"
+          },
+          {
+            "IpProtocol": "tcp",
+            "FromPort": "80",
+            "ToPort": "80",
+            "CidrIp": "0.0.0.0/0"
+          }
+        ]
+      }
+    },
+
+    "${ clusterName }MasterInstance": {
+      "Type" : "AWS::EC2::Instance",
+      "Properties" : {
+        "IamInstanceProfile": {
+          "Ref": "InstanceProfile"
+        },
+        "ImageId": "${ ecsAmiId }",
+        "InstanceType": "${ ecsInstanceType }",
+        "KeyName": "${ keyName }",
+        "NetworkInterfaces": [{
+          "GroupSet": [{
+            "Fn::GetAtt": ["${ clusterName }SG", "GroupId"]
+          }],
+          "AssociatePublicIpAddress": "true",
+          "DeviceIndex": "0",
+          "DeleteOnTermination": "true",
+          "SubnetId": {
+            "Ref": "${ clusterName }Subnet0"
+          }
+        }],
+        "Tags": [
+          {
+            "Key": "Type",
+            "Value": "${ clusterName } Master Instance"
+          }
+        ],
+        "UserData": {}
+      }
+    },
+
+    "InstanceRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "Path": "/",
+        "AssumeRolePolicyDocument" : {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                 "Service": [ "ec2.amazonaws.com" ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "Policies": [
+          {
+            "PolicyName": "${ clusterName }InstancePolicy",
+            "PolicyDocument": {
+              "Version" : "2012-10-17",
+              "Statement": [
+                {
+                  "Effect": "Allow",
+                  "Action": [
+                    "s3:Get*",
+                    "s3:List*",
+
+                    "ecs:Poll",
+                    "ecs:Submit*",
+                    "ecs:CreateCluster",
+                    "ecs:DeregisterContainerInstance",
+                    "ecs:DiscoverPollEndpoint",
+                    "ecs:RegisterContainerInstance",
+
+                    "ec2:Describe*",
+                    "ec2:AuthorizeSecurityGroupIngress",
+
+                    "elasticloadbalancing:Describe*",
+                    "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
+                    "elasticloadbalancing:RegisterInstancesWithLoadBalancer"
+                  ],
+                  "Resource": "*"
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+
+    "InstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Path": "/",
+        "Roles": [
+          {
+            "Ref": "InstanceRole"
+          }
+        ]
+      }
+    },
+
+    "InstanceLC": {
+      "Type": "AWS::AutoScaling::LaunchConfiguration",
+      "Properties": {
+        "ImageId": "${ ecsAmiId }",
+        "InstanceType": "${ ecsInstanceType }",
+        "IamInstanceProfile": {
+          "Ref": "InstanceProfile"
+        },
+        "KeyName": "${ keyName }",
+        "SecurityGroups": [
+          {
+            "Ref": "${ clusterName }SG"
+          }
+        ],
+        "AssociatePublicIpAddress": true,
+        "UserData": {}
+      }
+    },
+
+    "ASG": {
+      "Type": "AWS::AutoScaling::AutoScalingGroup",
+      "Properties": {
+        "AvailabilityZones": {
+        },
+        "VPCZoneIdentifier": {
+        },
+        "LaunchConfigurationName": {
+          "Ref": "InstanceLC"
+        },
+        "MinSize": "2",
+        "MaxSize": "${ clusterMaxSize }",
+        "DesiredCapacity": "${ clusterSize }",
+        "Tags": [
+          {
+            "Key": "Name",
+            "Value": "${ clusterName } cluster auto scaling group",
+            "PropagateAtLaunch": "true"
+          }
+        ]
+      }
+    }
+  },
+
+  "Outputs": {
+    "ASG": {
+      "Description": "${ clusterName } cluster auto scaling group",
+      "Value": {
+        "Ref": "ASG"
+      }
+    }
+  }
+}
