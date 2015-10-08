@@ -1,5 +1,11 @@
 #cloud-config
 write-files:
+  - path: /etc/systemd/system/docker.service.d/increase-ulimit.conf
+    permissions: 0644
+    owner: core:core
+    content: |
+      [Service]
+      LimitNOFILE=infinity
   - path: /opt/bin/wupiao
     permissions: '0755'
     content: |
