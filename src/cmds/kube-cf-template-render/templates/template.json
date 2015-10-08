@@ -113,7 +113,7 @@
         }],
         "Tags": [
           {
-            "Key": "Type",
+            "Key": "Name",
             "Value": "${ clusterName } Master Instance"
           }
         ],
